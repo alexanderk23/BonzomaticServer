@@ -54,9 +54,10 @@ type client struct {
 }
 
 type message struct {
-	room string
-	nick string
-	msg  []byte
+	room   string
+	nick   string
+	msg    []byte
+	sender *client
 }
 
 func (c *client) readFromConnectionPump() {
@@ -75,9 +76,7 @@ func (c *client) readFromConnectionPump() {
 			}
 			break
 		}
-		if c.nick != "" {
-			c.referee.broadcast <- message{room: c.room, nick: c.nick, msg: msg}
-		}
+		c.referee.broadcast <- message{room: c.room, nick: c.nick, msg: msg, sender: c}
 	}
 }
 
@@ -147,7 +146,9 @@ func (r *referee) run() {
 
 		case message := <-r.broadcast:
 			for client := range r.clients {
-				if client.room == message.room && (client.nick == message.nick || client.nick == "") {
+				if client.room == message.room &&
+					client != message.sender &&
+					(client.nick == message.nick || message.sender.nick == "") {
 					select {
 					case client.send <- message.msg:
 					default:
@@ -192,7 +193,7 @@ func main() {
 		}
 
 		log.Println("Client connected to room: '" + *room + "' with nick: '" + *nick + "'")
-		client := &client{referee: referee, room: *room, nick: *nick, conn: conn, send: make(chan []byte, 256)}
+		client := &client{referee: referee, room: *room, nick: *nick, conn: conn, send: make(chan []byte, 256 * 8)}
 		client.referee.register <- client
 		go client.writeToConnectionPump()
 		go client.readFromConnectionPump()

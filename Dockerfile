@@ -17,9 +17,10 @@ RUN mkdir -p /app
 WORKDIR /app
 
 # Copy the source code and assets files
-COPY main.go /app
 COPY go.mod /app
 COPY go.sum /app
+RUN go mod download
+COPY main.go /app
 
 # Build the executable
 RUN go build -o BonzomaticServer

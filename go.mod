@@ -1,4 +1,4 @@
-module github.com/alkama/BonzomaticServer
+module github.com/alexanderk23/BonzomaticServer
 
 go 1.21
 
