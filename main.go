@@ -30,9 +30,9 @@ const (
 
 const (
 	// Time allowed to write a message to the peer.
-	writeWait = 10 * time.Second
+	writeWait = 5 * time.Second
 	// Time allowed to read the next pong message from the peer.
-	pongWait = 60 * time.Second
+	pongWait = 10 * time.Second
 	// Send pings to peer with this period. Must be less than pongWait.
 	pingPeriod = (pongWait * 9) / 10
 	// Maximum message size allowed from peer.
@@ -126,7 +126,7 @@ func newReferee() *referee {
 		register:   make(chan *client),
 		unregister: make(chan *client),
 		clients:    make(map[*client]bool),
-		broadcast:  make(chan message),
+		broadcast:  make(chan message, 1024),
 	}
 }
 
@@ -146,14 +146,15 @@ func (r *referee) run() {
 
 		case message := <-r.broadcast:
 			for client := range r.clients {
-				if client.room == message.room &&
+				if client.nick != "" &&
+					client.room == message.room &&
 					client != message.sender &&
 					(client.nick == message.nick || message.sender.nick == "") {
 					select {
 					case client.send <- message.msg:
 					default:
-						close(client.send)
-						delete(r.clients, client)
+						// close(client.send)
+						// delete(r.clients, client)
 					}
 				}
 			}
@@ -193,7 +194,7 @@ func main() {
 		}
 
 		log.Println("Client connected to room: '" + *room + "' with nick: '" + *nick + "'")
-		client := &client{referee: referee, room: *room, nick: *nick, conn: conn, send: make(chan []byte, 256 * 8)}
+		client := &client{referee: referee, room: *room, nick: *nick, conn: conn, send: make(chan []byte, 64)}
 		client.referee.register <- client
 		go client.writeToConnectionPump()
 		go client.readFromConnectionPump()
